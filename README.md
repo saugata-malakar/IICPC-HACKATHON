@@ -5,6 +5,9 @@
 [![Go Version](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go)](https://go.dev/)
 [![Rust Version](https://img.shields.io/badge/Rust-1.77-CE422B?logo=rust)](https://www.rust-lang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=next.js)](https://nextjs.org/)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Render-46E3B7?logo=render)](https://iicpc-hackathon.onrender.com/)
+
+> **🔗 Live Demo: [https://iicpc-hackathon.onrender.com/](https://iicpc-hackathon.onrender.com/)**
 
 > **A production-grade distributed system for benchmarking high-frequency trading infrastructure with 5 groundbreaking research contributions.**
 
