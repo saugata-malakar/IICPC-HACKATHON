@@ -1,0 +1,278 @@
+# version removed - obsolete in Compose V2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IICPC Platform v2 — Championship Stack
+# one command: make up
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  platform:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+volumes:
+  postgres_data:
+  timescale_data:
+  redis_data:
+  kafka_data:
+  zookeeper_data:
+
+services:
+
+  # ─── Message bus ──────────────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    hostname: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes: [zookeeper_data:/var/lib/zookeeper]
+    networks: [platform]
+    healthcheck:
+      test: ["CMD","bash","-c","echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    hostname: kafka
+    depends_on:
+      zookeeper: {condition: service_healthy}
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 12
+      KAFKA_LOG_RETENTION_HOURS: 24
+    volumes: [kafka_data:/var/lib/kafka]
+    ports: ["9092:9092"]
+    networks: [platform]
+    healthcheck:
+      test: ["CMD","kafka-broker-api-versions","--bootstrap-server","localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on:
+      kafka: {condition: service_healthy}
+    ports: ["8090:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    networks: [platform]
+
+  # ─── Databases ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    hostname: postgres
+    environment:
+      POSTGRES_DB: iicpc
+      POSTGRES_USER: platform
+      POSTGRES_PASSWORD: platform2026
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports: ["5432:5432"]
+    networks: [platform]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U platform -d iicpc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    hostname: timescaledb
+    environment:
+      POSTGRES_DB: telemetry
+      POSTGRES_USER: telemetry
+      POSTGRES_PASSWORD: telemetry2026
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./infrastructure/sql/telemetry_schema.sql:/docker-entrypoint-initdb.d/init.sql
+    ports: ["5433:5432"]
+    networks: [platform]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U telemetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.2-alpine
+    hostname: redis
+    command: >
+      redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+      --save 60 1000 --appendonly yes
+    volumes: [redis_data:/data]
+    ports: ["6379:6379"]
+    networks: [platform]
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ─── Platform services ────────────────────────────────────────────────────
+  api-gateway:
+    build: {context: ./services/api-gateway, dockerfile: Dockerfile}
+    hostname: api-gateway
+    ports: ["8080:8080","9090:9090"]
+    environment:
+      PORT: "8080"
+      GRPC_PORT: "9090"
+      POSTGRES_DSN: "postgresql://platform:platform2026@postgres:5432/iicpc"
+      REDIS_URL: "redis:6379"
+      KAFKA_BROKERS: "kafka:29092"
+      JWT_SECRET: "iicpc_jwt_supersecret_2026"
+      RATE_LIMIT_RPS: "10000"
+      BOT_FLEET_GRPC: "bot-fleet:9091"
+    depends_on:
+      postgres:    {condition: service_healthy}
+      redis:       {condition: service_healthy}
+      kafka:       {condition: service_healthy}
+    volumes: [/var/run/docker.sock:/var/run/docker.sock]
+    networks: [platform]
+    deploy:
+      resources:
+        limits: {cpus: "2", memory: 512M}
+
+  submission-service:
+    build: {context: ./services/submission-service, dockerfile: Dockerfile}
+    hostname: submission-service
+    ports: ["8001:8001"]
+    environment:
+      PORT: "8001"
+      POSTGRES_DSN: "postgresql://platform:platform2026@postgres:5432/iicpc"
+      KAFKA_BROKERS: "kafka:29092"
+      SANDBOX_CPU_LIMIT: "2.0"
+      SANDBOX_MEM_LIMIT: "512m"
+      MAX_SUBMISSION_MB: "50"
+      WASM_ENABLED: "true"
+    depends_on:
+      postgres: {condition: service_healthy}
+      kafka:    {condition: service_healthy}
+    volumes: [/var/run/docker.sock:/var/run/docker.sock]
+    networks: [platform]
+    deploy:
+      resources:
+        limits: {cpus: "4", memory: 2G}
+
+  bot-fleet:
+    build: {context: ./services/bot-fleet, dockerfile: Dockerfile}
+    hostname: bot-fleet
+    ports: ["8002:8002","9091:9091"]
+    environment:
+      PORT: "8002"
+      GRPC_PORT: "9091"
+      KAFKA_BROKERS: "kafka:29092"
+      REDIS_URL: "redis:6379"
+      MAX_BOTS_PER_TARGET: "5000"
+      BOT_THINK_TIME_MS: "10"
+      DISRUPTOR_RING_SIZE: "65536"
+    depends_on:
+      kafka: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    networks: [platform]
+    deploy:
+      resources:
+        limits: {cpus: "8", memory: 4G}
+
+  telemetry-ingester:
+    build: {context: ./services/telemetry-ingester, dockerfile: Dockerfile}
+    hostname: telemetry-ingester
+    ports: ["8004:8004"]
+    environment:
+      PORT: "8004"
+      KAFKA_BROKERS: "kafka:29092"
+      TIMESCALE_DSN: "postgresql://telemetry:telemetry2026@timescaledb:5432/telemetry"
+      REDIS_URL: "redis://redis:6379"
+      RUST_LOG: "info"
+      EBPF_ENABLED: "false"
+    depends_on:
+      kafka:       {condition: service_healthy}
+      timescaledb: {condition: service_healthy}
+    networks: [platform]
+    # eBPF requires: privileged: true (prod only)
+    deploy:
+      resources:
+        limits: {cpus: "4", memory: 1G}
+
+  leaderboard-service:
+    build: {context: ./services/leaderboard-service, dockerfile: Dockerfile}
+    hostname: leaderboard-service
+    ports: ["8003:8003"]
+    environment:
+      PORT: "8003"
+      REDIS_URL: "redis:6379"
+      KAFKA_BROKERS: "kafka:29092"
+      WS_MAX_CONNECTIONS: "10000"
+      SCORE_WEIGHT_LATENCY: "0.40"
+      SCORE_WEIGHT_TPS: "0.35"
+      SCORE_WEIGHT_CORRECTNESS: "0.25"
+    depends_on:
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [platform]
+
+  chaos-engine:
+    build: {context: ./services/chaos-engine, dockerfile: Dockerfile}
+    hostname: chaos-engine
+    ports: ["8005:8005"]
+    environment:
+      PORT: "8005"
+      KAFKA_BROKERS: "kafka:29092"
+      REDIS_URL: "redis:6379"
+    depends_on:
+      kafka: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    volumes: [/var/run/docker.sock:/var/run/docker.sock]
+    networks: [platform]
+    # Requires NET_ADMIN for tc netem
+    cap_add: [NET_ADMIN]
+
+  predictor:
+    build: {context: ./services/predictor, dockerfile: Dockerfile}
+    hostname: predictor
+    ports: ["8006:8006"]
+    environment:
+      PORT: "8006"
+      KAFKA_BROKERS: "kafka:29092"
+    depends_on:
+      kafka: {condition: service_healthy}
+    networks: [platform]
+    deploy:
+      resources:
+        limits: {cpus: "2", memory: 1G}
+
+  frontend:
+    build: {context: ./frontend, dockerfile: Dockerfile}
+    hostname: frontend
+    ports: ["3000:3000"]
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:8080"
+      NEXT_PUBLIC_WS_URL:  "ws://localhost:8003"
+    depends_on: [api-gateway, leaderboard-service]
+    networks: [platform]
+
+  # ─── Observability ────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9093:9090"]
+    volumes: [./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml]
+    networks: [platform]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3001:3000"]
+    environment: {GF_SECURITY_ADMIN_PASSWORD: iicpc2026}
+    networks: [platform]
+    depends_on: [prometheus, timescaledb]

@@ -1,0 +1,43 @@
+[package]
+name = "telemetry-ingester"
+version = "2.0.0"
+edition = "2021"
+authors = ["IICPC Team <team@iicpc.org>"]
+
+[dependencies]
+tokio = { version = "1.37", features = ["full"] }
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4"] }
+rdkafka = { version = "0.36", features = ["cmake-build"] }
+redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4"
+hdrhistogram = "7.5"
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+bytes = "1.6"
+futures = "0.3"
+
+# eBPF support (optional, requires libbpf)
+libbpf-rs = { version = "0.23", optional = true }
+libbpf-sys = { version = "1.4", optional = true }
+
+[features]
+default = []
+ebpf = ["libbpf-rs", "libbpf-sys"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 0

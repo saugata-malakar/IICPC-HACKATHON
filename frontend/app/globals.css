@@ -1,0 +1,263 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   IICPC 2026 — Design System
+   Championship-grade UI inspired by:
+     - Bloomberg Terminal (data density + precision)
+     - Stripe Dashboard (clarity + hierarchy)
+     - Linear (motion + polish)
+     - HFT trading terminals (monospace + tabular nums)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ── Color system ──────────────────────────────────────────────────────── */
+  /* Neutral palette (dark mode optimized) */
+  --color-background-primary:    #0A0A0B;
+  --color-background-secondary:  #131316;
+  --color-background-tertiary:   #1A1A1E;
+  
+  --color-text-primary:          #FAFAFA;
+  --color-text-secondary:        #A1A1AA;
+  --color-text-tertiary:         #52525B;
+  
+  --color-border-primary:        #27272A;
+  --color-border-secondary:      #3F3F46;
+  --color-border-tertiary:       #18181B;
+  
+  /* Semantic colors */
+  --color-background-success:    #1D9E75;
+  --color-text-success:          #34D399;
+  --color-border-success:        #10B981;
+  
+  --color-background-danger:     #E24B4A;
+  --color-text-danger:           #F87171;
+  --color-border-danger:         #DC2626;
+  
+  --color-background-warning:    #BA7517;
+  --color-text-warning:          #FBBF24;
+  --color-border-warning:        #F59E0B;
+  
+  --color-background-info:       #185FA5;
+  --color-text-info:             #60A5FA;
+  --color-border-info:           #3B82F6;
+  
+  /* ── Typography ────────────────────────────────────────────────────────── */
+  --font-mono:  var(--font-jetbrains), "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --font-sans:  var(--font-space), "Space Grotesk", "Inter", system-ui, sans-serif;
+  
+  /* ── Spacing & Layout ──────────────────────────────────────────────────── */
+  --border-radius-sm:  4px;
+  --border-radius-md:  6px;
+  --border-radius-lg:  10px;
+  --border-radius-xl:  14px;
+  
+  --shadow-sm:  0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  
+  /* ── Animation ─────────────────────────────────────────────────────────── */
+  --transition-fast:    150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base:    250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:    400ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  --spring-bounce:      cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ── Base resets ─────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ── Typography utilities ────────────────────────────────────────────────── */
+.font-mono { font-family: var(--font-mono); }
+.font-sans { font-family: var(--font-sans); }
+
+.text-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-text-info), var(--color-text-success));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Glitch effect (for rank changes) ────────────────────────────────────── */
+@keyframes glitch {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+}
+
+.glitch {
+  animation: glitch 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ── Pulse animation (for live indicators) ───────────────────────────────── */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.pulse-ring {
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+/* ── Shimmer loading effect ──────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-background-secondary) 0%,
+    var(--color-background-tertiary) 50%,
+    var(--color-background-secondary) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection {
+  background: var(--color-background-info);
+  color: var(--color-text-primary);
+}
+
+/* ── Focus states ────────────────────────────────────────────────────────── */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-border-info);
+  outline-offset: 2px;
+}
+
+/* ── Recharts overrides ──────────────────────────────────────────────────── */
+.recharts-surface {
+  overflow: visible;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+.recharts-default-tooltip {
+  background: var(--color-background-secondary) !important;
+  border: 0.5px solid var(--color-border-secondary) !important;
+  border-radius: var(--border-radius-md) !important;
+  padding: 8px 12px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+}
+
+/* ── Utility classes ─────────────────────────────────────────────────────── */
+.card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 1rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.badge-success {
+  background: var(--color-background-success);
+  color: var(--color-text-success);
+}
+
+.badge-danger {
+  background: var(--color-background-danger);
+  color: var(--color-text-danger);
+}
+
+.badge-warning {
+  background: var(--color-background-warning);
+  color: var(--color-text-warning);
+}
+
+.badge-info {
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+}
+
+/* ── Responsive breakpoints ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  body {
+    font-size: 12px;
+  }
+  
+  .card {
+    padding: 0.75rem;
+  }
+}
+
+/* ── Print styles ────────────────────────────────────────────────────────── */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
