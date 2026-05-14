@@ -145,6 +145,7 @@ services:
     region: oregon
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
 
 databases:
   # ─── PostgreSQL ────────────────────────────────────────────────────────────
